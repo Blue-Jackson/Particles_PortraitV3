@@ -2,7 +2,7 @@
 <html lang="en" >
 <head>
   <meta charset="UTF-8">
-  <title>CodePen - three.js Pixel Distortion Effect</title>
+  <title></title>
   <link rel="stylesheet" href="./style.css">
 
 </head>
@@ -12,7 +12,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pixel Distortion Effect</title>
+    <title></title>
     <style>
       body { margin: 0; overflow: hidden; user-select: none; background: #000000; }
       canvas { display: block; }
@@ -163,7 +163,7 @@
       function onWindowResize() {
         const width = window.innerWidth;
         const height = window.innerHeight;
-        const imageAspect = 1260 / 750;
+        const imageAspect = 1260 / 1260;
         let a1, a2;
         if (height / width > imageAspect) {
           a1 = (width / height) * imageAspect;
@@ -247,14 +247,7 @@
         title3.addEventListener('click', toggleFullscreen);
       });
 
-      function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen();
-          title3.textContent = 'fullscreen off';
-        } else if (document.exitFullscreen) {
-          document.exitFullscreen();
-          title3.textContent = 'fullscreen on';
-        }
+
       }
 
     </script>
