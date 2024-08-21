@@ -1,46 +1,266 @@
 <!DOCTYPE html>
-<html lang="en" class="no-js">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>Pixel Distortion with Three.js | Demo 4 | Codrops</title>
-		<meta name="description" content="An interactive pixel distortion effect made with Three.js " />
-		<meta name="keywords" content="webgl, three.js, pixel, distortion, pixelated, javascript" />
-		<meta name="author" content="Codrops" />
-		<link rel="shortcut icon" href="favicon.ico">
-		<link rel="stylesheet" href="https://use.typekit.net/oxr3hup.css">
-		<link rel="stylesheet" type="text/css" href="css/base.css" />
-		<script>document.documentElement.className="js";var supportsCssVars=function(){var e,t=document.createElement("style");return t.innerHTML="root: { --tmp-var: bold; }",document.head.appendChild(t),e=!!(window.CSS&&window.CSS.supports&&window.CSS.supports("font-weight","var(--tmp-var)")),t.parentNode.removeChild(t),e};supportsCssVars()||alert("Please view this demo in a modern browser that supports CSS Variables.");</script>
-		<script src="//tympanus.net/codrops/adpacks/analytics.js"></script>
-	</head>
-	<body class="demo-4">
-		<main>
-			<div class="frame">
-				<div class="frame__title-wrap">
-					<h1 class="frame__title">Pixel Distortion</h1>
-					<p class="frame__tagline">with Three.js</p>
-				</div>
-				<nav class="frame__links">
-					<a href="https://tympanus.net/Development/ColumnScroll/">Previous demo</a>
-					<a href="https://tympanus.net/codrops/?p=58318">Article</a>
-					<a href="https://github.com/akella/DistortedPixels">GitHub</a>
-				</nav>
-				<nav class="frame__demos">
-					<a href="index.html" class="frame__demo ">demo 1</a>
-					<a href="index2.html" class="frame__demo">demo 2</a>
-					<a href="index3.html" class="frame__demo">demo 3</a>
-					<a href="index4.html" class="frame__demo frame__demo--current">demo 4</a>
-				</nav>
-			</div>
-			<div id="canvasContainer"
-				data-grid="15"
-				data-mouse="0.13"
-				data-strength="0.15"
-			>
-				<img src="img/4.jpg" alt="">
-			</div>
-		</main>
-		<script src="https://tympanus.net/codrops/adpacks/cda.js"></script>
-		<script type="module" src="js/app.js"></script>
-	</body>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - three.js Pixel Distortion Effect</title>
+  <link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Distortion Effect</title>
+    <style>
+      body { margin: 0; overflow: hidden; user-select: none; background: #000000; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script type="module">
+      import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+
+      let scene, camera, renderer, mesh, dataTexture, clock, mouse, mouseSpeed;
+      let title1, title2, title3;
+
+      let windowWidth;
+      let windowWheight;
+      const params = {
+        cols: 32 ,
+        rows: 24 ,
+        effectStrength: 0.02,
+        mouseRadius: 50,
+        relaxation: 0.7,
+      };
+
+      init();
+      animate();
+
+      function init() {
+        windowWidth = window.innerWidth;
+        windowWheight = window.innerHeight;
+
+        // Scene and Camera
+        scene = new THREE.Scene();
+        camera = new THREE.Camera();
+        camera.position.z = 1;
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Geometry
+        const geometry = new THREE.PlaneBufferGeometry(1.26 * 2.7, .75 * 2.7);
+
+        // Data Texture
+        createDataTexture();
+
+        // Load main texture
+        const loader = new THREE.TextureLoader();
+        loader.load('https://media.discordapp.net/attachments/1249904363590254696/1275679876405268490/4.png?ex=66c6c4f7&is=66c57377&hm=2881f0be373c5778e8352d4e216549329dc07b80bf5bc9afb0b070535c41f57c&=&format=webp&quality=lossless&width=852&height=560', (texture) => {
+          // Shader Material
+          const material = new THREE.ShaderMaterial({
+            uniforms: {
+              uTexture: { value: texture },
+              uDataTexture: { value: dataTexture },
+              aspect: { value: window.innerWidth / window.innerHeight },
+              effectStrength: { value: params.effectStrength },
+              resolution: { value: new THREE.Vector4() }
+            },
+            vertexShader: vertexShader(),
+            fragmentShader: fragmentShader()
+          });
+
+          // Mesh
+          mesh = new THREE.Mesh(geometry, material);
+          scene.add(mesh);
+          onWindowResize();
+        });
+
+        // Mouse
+        mouse = { x: 0, y: 0, vX: 0, vY: 0 };
+        mouseSpeed = { x: 0, y: 0 };
+
+        window.addEventListener('mousemove', (event) => {
+          mouse.vX = (event.clientX - mouse.x) * 0.1;
+          mouse.vY = ((window.innerHeight - event.clientY) - mouse.y) * 0.1;
+          mouse.x = event.clientX;
+          mouse.y = window.innerHeight - event.clientY;
+        });
+
+        // Touch
+        window.addEventListener('touchmove', (event) => {
+          const touch = event.touches[0];
+          mouse.vX = (touch.clientX - mouse.x) * 0.1;
+          mouse.vY = ((window.innerHeight - touch.clientY) - mouse.y) * 0.1;
+          mouse.x = touch.clientX;
+          mouse.y = window.innerHeight - touch.clientY;
+        });
+
+        window.addEventListener('resize', onWindowResize);
+
+        // Clock
+        clock = new THREE.Clock();
+
+        // dat.GUI
+        const gui = new dat.GUI({closed:true});
+        gui.domElement.querySelector('.close-button').innerHTML = 'Open Controls';
+        dat.GUI.TEXT_OPEN = "Open Controls";
+        dat.GUI.TEXT_CLOSED = "Close Controls";
+        //dat.GUI.toggleHide();
+
+        //  gui.add(params, 'rows', 10, 100).onChange(createDataTexture);
+        //  gui.add(params, 'cols', 10, 100).onChange(createDataTexture);
+        gui.add(params, 'effectStrength', 0.01, 0.1).onChange((value) => {
+          mesh.material.uniforms.effectStrength.value = value;
+        });
+        gui.add(params, 'mouseRadius', 10, 200);
+        gui.add(params, 'relaxation', 0.5, 1.0);
+      }
+
+      function createDataTexture() {
+        const size = params.rows * params.cols;
+        const data = new Float32Array(3 * size);
+        for (let i = 0; i < size; i++) {
+          const stride = i * 3;
+          data[stride] = Math.random() * 255;
+          data[stride + 1] = Math.random() * 255;
+          data[stride + 2] = 0;
+        }
+        dataTexture = new THREE.DataTexture(data, params.rows, params.cols, THREE.RGBFormat, THREE.FloatType);
+        dataTexture.needsUpdate = true;
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // Update Data Texture
+        const data = dataTexture.image.data;
+        for (let i = 0; i < params.rows; i++) {
+          for (let j = 0; j < params.cols; j++) {
+            const distance = Math.hypot(mouse.x - i * window.innerWidth / params.rows, mouse.y - j * window.innerHeight / params.cols);
+            const index = 3 * (i + params.rows * j);
+            if (distance < params.mouseRadius) {
+              data[index] = mouse.vX;
+              data[index + 1] = mouse.vY;
+            }
+          }
+        }
+        for (let i = 0; i < data.length; i += 3) {
+          data[i] *= params.relaxation;
+          data[i + 1] *= params.relaxation;
+        }
+        dataTexture.needsUpdate = true;
+
+        renderer.render(scene, camera);
+      }
+
+      function onWindowResize() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const imageAspect = 1260 / 750;
+        let a1, a2;
+        if (height / width > imageAspect) {
+          a1 = (width / height) * imageAspect;
+          a2 = 1;
+        } else {
+          a1 = 1;
+          a2 = (height / width) / imageAspect;
+        }
+        mesh.material.uniforms.resolution.value.x = width;
+        mesh.material.uniforms.resolution.value.y = height;
+        mesh.material.uniforms.resolution.value.z = a1;
+        mesh.material.uniforms.resolution.value.w = a2;
+        renderer.setSize(width, height);
+      }
+
+      function vertexShader() {
+        return `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = vec4(position, 1.0);
+                }
+            `;
+      }
+
+      function fragmentShader() {
+        return `
+                uniform sampler2D uTexture;
+                uniform sampler2D uDataTexture;
+                uniform float aspect;
+                uniform float effectStrength;
+                uniform vec4 resolution;
+                varying vec2 vUv;
+                void main() {
+                    vec2 newUV = (vUv - vec2(0.25)) * resolution.zw + vec2(0.25);
+                    vec4 color = texture2D(uTexture, newUV);
+                    vec4 offset = texture2D(uDataTexture, vUv);
+                    gl_FragColor = texture2D(uTexture, newUV - effectStrength * offset.rg);
+                }
+            `;
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        title1 = document.createElement('h3');
+        title1.classList.add('title', '_1');
+        title1.textContent = 'three.js Pixel Distortion Effect';
+
+        title2 = document.createElement('h3');
+        title2.classList.add('title', '_2');
+        title2.textContent = 'tutorial';
+
+        title3 = document.createElement('h3');
+        title3.classList.add('title', '_3');
+        title3.textContent = 'fullscreen on';
+
+        document.body.appendChild(title1);
+        document.body.appendChild(title2);
+        document.body.appendChild(title3);
+
+        const titles = document.querySelectorAll('.title');
+
+        titles.forEach(title => {
+          title.style.position = 'absolute';
+          title.style.fontFamily = 'arial';
+          title.style.color = '#fff';
+          title.style.fontSize = '.8rem';
+        });
+
+        title1.style.top = '20px';
+        title1.style.left = '30px';
+
+        title2.style.bottom = '20px';
+        title2.style.left = '30px';
+        title2.style.cursor='pointer';
+        title3.style.bottom = '20px';
+        title3.style.right = '30px';
+        title3.style.cursor = 'pointer';
+        title2.addEventListener('click', () => {
+          const tab = window.open('https://tympanus.net/codrops/2022/01/12/pixel-distortion-effect-with-three-js/', '_blank');
+        });
+        title3.addEventListener('click', toggleFullscreen);
+      });
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+          title3.textContent = 'fullscreen off';
+        } else if (document.exitFullscreen) {
+          document.exitFullscreen();
+          title3.textContent = 'fullscreen on';
+        }
+      }
+
+    </script>
+  </body>
+</html>
+<!-- partial -->
+  
+</body>
 </html>
